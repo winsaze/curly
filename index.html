@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16171a">
+<title>ENT-killer — дисциплина без перегруза</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Russo+One&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#16171a;
+  --panel:#202226;
+  --panel-2:#2a2c31;
+  --ash:#8d8f93;
+  --bone:#d9d4c7;
+  --red:#c2403a;
+  --red-soft:rgba(194,64,58,.14);
+  --blue:#4a86c9;
+  --blue-soft:rgba(74,134,201,.14);
+  --line:#3a3c42;
+  --radius:20px;
+  --display:"Russo One","Arial Black",Impact,sans-serif;
+  --mono:"IBM Plex Mono","Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--bone);
+  font-family:var(--mono);
+  font-size:15px;
+  line-height:1.55;
+  min-height:100vh;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  background-image:radial-gradient(ellipse at 50% -10%,#2b2d33 0%,transparent 60%);
+}
+/* VHS-зерно и линии развёртки */
+body::before,body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50}
+body::before{
+  opacity:.07;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+body::after{
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.18) 0 1px,transparent 1px 3px);
+  opacity:.35;
+}
+.wrap{max-width:980px;margin:0 auto;padding:28px 18px 80px;position:relative;z-index:1}
+
+/* Шапка */
+header{margin-bottom:26px}
+.logo{
+  font-family:var(--display);
+  font-size:clamp(40px,9vw,76px);
+  line-height:.95;
+  letter-spacing:.01em;
+  color:var(--bone);
+  text-shadow:3px 0 0 rgba(194,64,58,.75),-3px 0 0 rgba(74,134,201,.65);
+}
+.tagline{margin-top:12px;color:var(--ash);max-width:56ch}
+.tagline b{color:var(--bone);font-weight:500}
+
+/* Статистика */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+.stat{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px 16px 14px;
+}
+.stat .num{font-family:var(--display);font-size:clamp(28px,6vw,42px);line-height:1}
+.stat .lbl{margin-top:8px;color:var(--ash);font-size:13px}
+.stat.done .num{color:var(--blue)}
+.stat.todo .num{color:var(--red)}
+.progress{
+  height:14px;background:var(--panel);border:1px solid var(--line);border-radius:99px;overflow:hidden;margin-bottom:30px;
+}
+.progress i{
+  display:block;height:100%;width:0;background:var(--blue);border-radius:99px;
+  transition:width .5s ease;
+}
+
+/* Панели */
+.panel{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px;margin-bottom:26px;
+}
+.panel h2{font-family:var(--display);font-weight:400;font-size:22px;margin-bottom:16px}
+.panel.editing{border-color:var(--bone)}
+form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+label{font-size:13px;color:var(--ash)}
+input,textarea{
+  font:inherit;color:var(--bone);background:var(--bg);
+  border:1px solid var(--line);border-radius:14px;padding:12px 14px;width:100%;
+  color-scheme:dark;
+}
+textarea{resize:vertical;min-height:84px}
+input:focus,textarea:focus,button:focus-visible,select:focus-visible{
+  outline:2px solid var(--bone);outline-offset:2px;
+}
+.err{color:var(--red);font-size:13px;min-height:18px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+button{
+  font:inherit;cursor:pointer;color:var(--bone);background:var(--panel-2);
+  border:1px solid var(--line);border-radius:14px;padding:10px 16px;
+  transition:background .15s,border-color .15s,transform .1s;
+}
+button:hover{background:#34363c;border-color:var(--ash)}
+button:active{transform:translateY(1px)}
+.btn-main{background:var(--red);border-color:var(--red);color:#fff;font-weight:600;padding:12px 22px}
+.btn-main:hover{background:#d24a43;border-color:#d24a43}
+.btn-done{background:var(--blue-soft);border-color:var(--blue);color:#a9cdf2}
+.btn-done:hover{background:rgba(74,134,201,.28)}
+.btn-undo{background:var(--red-soft);border-color:var(--red);color:#f0a9a5}
+.btn-undo:hover{background:rgba(194,64,58,.28)}
+.btn-del:hover{border-color:var(--red);color:#f0a9a5}
+
+/* Управление */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;margin-bottom:16px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tab[aria-pressed="true"]{background:var(--bone);color:var(--bg);border-color:var(--bone);font-weight:600}
+
+/* Карточки */
+.list{display:grid;gap:14px}
+.card{
+  position:relative;border-radius:var(--radius);padding:18px 18px 16px 22px;
+  background:var(--panel);border:1px solid var(--line);overflow:hidden;
+}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:7px;background:var(--red)}
+.card.todo{background:linear-gradient(0deg,var(--red-soft),var(--red-soft)),var(--panel);border-color:rgba(194,64,58,.5)}
+.card.done{background:linear-gradient(0deg,var(--blue-soft),var(--blue-soft)),var(--panel);border-color:rgba(74,134,201,.5)}
+.card.done::before{background:var(--blue)}
+.card h3{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.25;word-break:break-word}
+.card.done h3{color:#a9cdf2}
+.card.todo h3{color:#f3c2be}
+.card p{margin-top:8px;color:var(--bone);opacity:.82;white-space:pre-wrap;word-break:break-word}
+.meta{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:12px;font-size:13px;color:var(--ash)}
+.badge{
+  display:inline-block;border-radius:99px;padding:3px 12px;font-size:12px;font-weight:600;
+}
+.badge.status-todo{background:var(--red);color:#fff}
+.badge.status-done{background:var(--blue);color:#fff}
+.badge.expired{background:transparent;border:1px solid var(--red);color:#ff8b84;animation:blink 1.4s steps(2,jump-none) infinite}
+@keyframes blink{50%{opacity:.35}}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.actions button{padding:8px 14px;font-size:14px}
+.empty{
+  text-align:center;color:var(--ash);padding:38px 18px;border:1px dashed var(--line);border-radius:var(--radius);
+}
+
+/* Тост «Headlock» */
+.toast{
+  position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translate(-50%,160%);
+  width:min(440px,calc(100% - 28px));z-index:80;
+  background:#0f1012;border:1px solid var(--blue);border-radius:var(--radius);
+  padding:16px 18px;display:flex;gap:14px;align-items:center;
+  box-shadow:0 0 0 1px #000,0 18px 40px rgba(0,0,0,.6);
+  transition:transform .35s cubic-bezier(.2,.9,.3,1);
+}
+.toast.show{transform:translate(-50%,0)}
+.eq{display:flex;gap:3px;align-items:flex-end;height:30px;flex:none}
+.eq i{display:block;width:5px;height:6px;background:var(--blue);border-radius:2px}
+.toast.playing .eq i{animation:eq .7s ease-in-out infinite alternate}
+.toast.playing .eq i:nth-child(2){animation-delay:.15s}
+.toast.playing .eq i:nth-child(3){animation-delay:.3s}
+.toast.playing .eq i:nth-child(4){animation-delay:.1s}
+@keyframes eq{from{height:5px}to{height:30px}}
+.toast .t1{font-family:var(--display);font-size:18px;color:#a9cdf2;line-height:1.2}
+.toast .t2{font-size:13px;color:var(--ash)}
+.toast button{margin-left:auto;padding:6px 10px;flex:none}
+
+footer{margin-top:40px;color:var(--ash);font-size:13px;border-top:1px solid var(--line);padding-top:18px}
+footer .row{margin-bottom:10px}
+footer button{font-size:13px;padding:7px 12px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+@media (max-width:720px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  form{grid-template-columns:1fr}
+  .wrap{padding:20px 14px 90px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1 class="logo">ENT-killer</h1>
+    <p class="tagline">Маленькие задания, жёсткие дедлайны. <b>Закрывай по одному</b> — без перегруза для головы.</p>
+  </header>
+
+  <section class="stats" aria-label="Статистика">
+    <div class="stat"><div class="num" id="statTotal">0</div><div class="lbl">Всего заданий</div></div>
+    <div class="stat done"><div class="num" id="statDone">0</div><div class="lbl">Выполнено</div></div>
+    <div class="stat todo"><div class="num" id="statTodo">0</div><div class="lbl">Не выполнено</div></div>
+    <div class="stat"><div class="num" id="statPercent">0%</div><div class="lbl">Процент выполнения</div></div>
+  </section>
+  <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar"><i id="progressFill"></i></div>
+
+  <section class="panel" id="formPanel">
+    <h2 id="formTitle">Новое задание</h2>
+    <form id="taskForm" novalidate>
+      <div class="field full">
+        <label for="title">Название задания</label>
+        <input id="title" type="text" maxlength="120" placeholder="Например: выучить 20 слов по биологии" autocomplete="off">
+      </div>
+      <div class="field full">
+        <label for="desc">Описание задания</label>
+        <textarea id="desc" maxlength="1000" placeholder="Что именно нужно сделать"></textarea>
+      </div>
+      <div class="field">
+        <label for="date">Дата дедлайна</label>
+        <input id="date" type="date">
+      </div>
+      <div class="field">
+        <label for="time">Время дедлайна</label>
+        <input id="time" type="time">
+      </div>
+      <div class="field full">
+        <div class="err" id="formError" role="alert"></div>
+        <div class="row">
+          <button type="submit" class="btn-main" id="submitBtn">Добавить задание</button>
+          <button type="button" id="cancelEdit" hidden>Отмена</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section aria-label="Список заданий">
+    <div class="toolbar">
+      <div class="tabs" role="group" aria-label="Фильтр">
+        <button class="tab" data-filter="all" aria-pressed="true">Все задания</button>
+        <button class="tab" data-filter="done" aria-pressed="false">Выполненные</button>
+        <button class="tab" data-filter="todo" aria-pressed="false">Невыполненные</button>
+      </div>
+      <button id="sortBtn" type="button">Сортировка: ближайшие первыми</button>
+    </div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <footer>
+    <div class="row">
+      <button type="button" id="loadTrack">Подключить свой трек «Headlock»</button>
+      <button type="button" id="muteBtn" aria-pressed="false">Звук: вкл</button>
+    </div>
+    <p>Задания хранятся в этом браузере и не пропадают после обновления страницы. Чтобы при выполнении играла песня, положите файл <b>headlock.mp3</b> рядом с index.html или выберите его кнопкой выше.</p>
+  </footer>
+</div>
+
+<input type="file" id="trackFile" accept="audio/*" class="sr" tabindex="-1">
+<audio id="track" preload="auto" src="headlock.mp3"></audio>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div>
+    <div class="t1" id="toastTitle">Headlock</div>
+    <div class="t2" id="toastText"></div>
+  </div>
+  <button type="button" id="toastClose" aria-label="Закрыть">✕</button>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ===== Настройки ===== */
+  var STORAGE_KEY = 'ent-killer.tasks.v1';
+  var SORT_KEY = 'ent-killer.sort.v1';
+  var MUTE_KEY = 'ent-killer.mute.v1';
+  // Текст, который показывается при выполнении задания. Можно заменить на свой.
+  var DONE_MESSAGE = 'Ты можешь лучше. Держи темп.';
+  var TRACK_SECONDS = 9; // сколько секунд играет трек после выполнения
+
+  /* ===== Состояние ===== */
+  var tasks = load();
+  var filter = 'all';
+  var sortAsc = localStorage.getItem(SORT_KEY) !== 'desc';
+  var editingId = null;
+  var muted = localStorage.getItem(MUTE_KEY) === '1';
+  var toastTimer = null, stopTimer = null;
+  var userTrackURL = null;
+
+  /* ===== Элементы ===== */
+  var $ = function(id){ return document.getElementById(id); };
+  var form = $('taskForm'), titleEl = $('title'), descEl = $('desc'), dateEl = $('date'), timeEl = $('time');
+  var errEl = $('formError'), submitBtn = $('submitBtn'), cancelBtn = $('cancelEdit');
+  var listEl = $('list'), sortBtn = $('sortBtn'), muteBtn = $('muteBtn');
+  var audio = $('track'), toast = $('toast');
+
+  /* ===== Хранилище ===== */
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){ return []; }
+  }
+  function save(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }catch(e){}
+  }
+
+  /* ===== Утилиты ===== */
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function deadlineOf(t){ return new Date(t.date + 'T' + t.time).getTime(); }
+  function isExpired(t){ return !t.done && deadlineOf(t) < Date.now(); }
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function fmtDate(t){
+    var d = new Date(t.date + 'T' + t.time);
+    return d.toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}) + ', ' +
+           d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  }
+  function leftText(t){
+    var diff = deadlineOf(t) - Date.now();
+    if(diff <= 0) return '';
+    var m = Math.floor(diff/60000), h = Math.floor(m/60), d = Math.floor(h/24);
+    if(d >= 1) return 'Осталось: ' + d + ' дн. ' + (h%24) + ' ч.';
+    if(h >= 1) return 'Осталось: ' + h + ' ч. ' + (m%60) + ' мин.';
+    return 'Осталось: ' + Math.max(m,1) + ' мин.';
+  }
+
+  /* ===== Статистика ===== */
+  function renderStats(){
+    var total = tasks.length;
+    var done = tasks.filter(function(t){return t.done;}).length;
+    var todo = total - done;
+    var pct = total ? Math.round(done/total*100) : 0;
+    $('statTotal').textContent = total;
+    $('statDone').textContent = done;
+    $('statTodo').textContent = todo;
+    $('statPercent').textContent = pct + '%';
+    $('progressFill').style.width = pct + '%';
+    $('progressBar').setAttribute('aria-valuenow', pct);
+  }
+
+  /* ===== Список ===== */
+  function render(){
+    renderStats();
+    sortBtn.textContent = 'Сортировка: ' + (sortAsc ? 'ближайшие первыми' : 'дальние первыми');
+
+    var shown = tasks.filter(function(t){
+      return filter === 'all' || (filter === 'done' ? t.done : !t.done);
+    }).sort(function(a,b){
+      return sortAsc ? deadlineOf(a)-deadlineOf(b) : deadlineOf(b)-deadlineOf(a);
+    });
+
+    if(!shown.length){
+      var msg = tasks.length === 0
+        ? 'Заданий пока нет. Добавь первое — и начни закрывать долги.'
+        : (filter === 'done' ? 'Выполненных заданий пока нет.' : 'Невыполненных заданий нет. Тишина.');
+      listEl.innerHTML = '<div class="empty">' + msg + '</div>';
+      return;
+    }
+
+    listEl.innerHTML = shown.map(function(t){
+      var expired = isExpired(t);
+      var cls = t.done ? 'done' : 'todo';
+      return '<article class="card ' + cls + '" data-id="' + t.id + '">' +
+        '<h3>' + esc(t.title) + '</h3>' +
+        (t.desc ? '<p>' + esc(t.desc) + '</p>' : '') +
+        '<div class="meta">' +
+          '<span class="badge status-' + cls + '">' + (t.done ? 'Выполнено' : 'Не выполнено') + '</span>' +
+          (expired ? '<span class="badge expired">Срок истёк!</span>' : '') +
+          '<span>Дедлайн: ' + esc(fmtDate(t)) + '</span>' +
+          (!t.done && !expired ? '<span>' + leftText(t) + '</span>' : '') +
+        '</div>' +
+        '<div class="actions">' +
+          (t.done
+            ? '<button class="btn-undo" data-act="undo">Не выполнено</button>'
+            : '<button class="btn-done" data-act="done">Выполнено</button>') +
+          '<button data-act="edit">Редактировать</button>' +
+          '<button class="btn-del" data-act="del">Удалить</button>' +
+        '</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  /* ===== Форма ===== */
+  function resetForm(){
+    form.reset();
+    editingId = null;
+    errEl.textContent = '';
+    $('formTitle').textContent = 'Новое задание';
+    submitBtn.textContent = 'Добавить задание';
+    cancelBtn.hidden = true;
+    $('formPanel').classList.remove('editing');
+  }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var title = titleEl.value.trim();
+    var desc = descEl.value.trim();
+    var date = dateEl.value, time = timeEl.value;
+
+    if(!title){ errEl.textContent = 'Введи название задания.'; titleEl.focus(); return; }
+    if(!date){ errEl.textContent = 'Укажи дату дедлайна.'; dateEl.focus(); return; }
+    if(!time){ errEl.textContent = 'Укажи время дедлайна.'; timeEl.focus(); return; }
+
+    if(editingId){
+      var t = tasks.find(function(x){return x.id === editingId;});
+      if(t){ t.title = title; t.desc = desc; t.date = date; t.time = time; }
+    }else{
+      tasks.push({ id: uid(), title: title, desc: desc, date: date, time: time, done: false, created: Date.now() });
+    }
+    save();
+    resetForm();
+    render();
+  });
+
+  cancelBtn.addEventListener('click', resetForm);
+
+  /* ===== Действия над карточками ===== */
+  listEl.addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    var card = btn.closest('.card');
+    var id = card.getAttribute('data-id');
+    var t = tasks.find(function(x){return x.id === id;});
+    if(!t) return;
+    var act = btn.getAttribute('data-act');
+
+    if(act === 'done'){
+      t.done = true; save(); render(); celebrate();
+    }else if(act === 'undo'){
+      t.done = false; save(); render();
+    }else if(act === 'edit'){
+      editingId = t.id;
+      titleEl.value = t.title; descEl.value = t.desc || ''; dateEl.value = t.date; timeEl.value = t.time;
+      $('formTitle').textContent = 'Редактирование задания';
+      submitBtn.textContent = 'Сохранить изменения';
+      cancelBtn.hidden = false;
+      errEl.textContent = '';
+      $('formPanel').classList.add('editing');
+      $('formPanel').scrollIntoView({behavior:'smooth',block:'start'});
+      titleEl.focus();
+    }else if(act === 'del'){
+      if(confirm('Удалить задание «' + t.title + '»?')){
+        tasks = tasks.filter(function(x){return x.id !== id;});
+        if(editingId === id) resetForm();
+        save(); render();
+      }
+    }
+  });
+
+  /* ===== Фильтры и сортировка ===== */
+  document.querySelectorAll('.tab').forEach(function(b){
+    b.addEventListener('click', function(){
+      filter = b.getAttribute('data-filter');
+      document.querySelectorAll('.tab').forEach(function(x){
+        x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+      });
+      render();
+    });
+  });
+  sortBtn.addEventListener('click', function(){
+    sortAsc = !sortAsc;
+    localStorage.setItem(SORT_KEY, sortAsc ? 'asc' : 'desc');
+    render();
+  });
+
+  /* ===== Звук ===== */
+  function updateMuteBtn(){
+    muteBtn.textContent = 'Звук: ' + (muted ? 'выкл' : 'вкл');
+    muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+  }
+  muteBtn.addEventListener('click', function(){
+    muted = !muted;
+    localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
+    if(muted) stopSound();
+    updateMuteBtn();
+  });
+
+  $('loadTrack').addEventListener('click', function(){ $('trackFile').click(); });
+  $('trackFile').addEventListener('change', function(){
+    var f = this.files && this.files[0];
+    if(!f) return;
+    if(userTrackURL) URL.revokeObjectURL(userTrackURL);
+    userTrackURL = URL.createObjectURL(f);
+    audio.src = userTrackURL;
+    audio.load();
+    showToast('Трек подключён', f.name, false);
+    setTimeout(hideToast, 2500);
+  });
+
+  // Запасной звук (если файла нет): короткая синтезированная мелодия
+  var actx = null;
+  function fallbackBeep(){
+    try{
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var notes = [220, 261.6, 329.6, 293.7, 220, 196, 220];
+      var t0 = actx.currentTime + 0.02;
+      notes.forEach(function(f,i){
+        var o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'triangle'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t0 + i*0.28);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + i*0.28 + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + i*0.28 + 0.26);
+        o.connect(g); g.connect(actx.destination);
+        o.start(t0 + i*0.28); o.stop(t0 + i*0.28 + 0.3);
+      });
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function playSound(onStart){
+    if(muted) return;
+    audio.currentTime = 0;
+    var p = audio.play();
+    if(p && p.then){
+      p.then(function(){ onStart(true); }).catch(function(){
+        onStart(fallbackBeep());
+      });
+    }else{
+      onStart(true);
+    }
+  }
+  function stopSound(){
+    try{ audio.pause(); audio.currentTime = 0; }catch(e){}
+    clearTimeout(stopTimer);
+    toast.classList.remove('playing');
+  }
+
+  // Если файл не загрузился — используем запасной звук
+  audio.addEventListener('error', function(){ /* play() вернёт ошибку и сработает запасной вариант */ });
+
+  /* ===== Тост ===== */
+  function showToast(title, text, playing){
+    $('toastTitle').textContent = title;
+    $('toastText').textContent = text;
+    toast.classList.add('show');
+    toast.classList.toggle('playing', !!playing);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, TRACK_SECONDS * 1000 + 1500);
+  }
+  function hideToast(){
+    toast.classList.remove('show');
+    stopSound();
+  }
+  $('toastClose').addEventListener('click', hideToast);
+
+  function celebrate(){
+    showToast('Headlock', DONE_MESSAGE, false);
+    playSound(function(ok){
+      if(ok) toast.classList.add('playing');
+      clearTimeout(stopTimer);
+      stopTimer = setTimeout(function(){
+        try{ audio.pause(); }catch(e){}
+        toast.classList.remove('playing');
+      }, TRACK_SECONDS * 1000);
+    });
+  }
+
+  /* ===== Старт ===== */
+  updateMuteBtn();
+  render();
+  // Обновляем «осталось» и предупреждения о просроченных сроках раз в минуту
+  setInterval(render, 60000);
+})();
+</script>
+</body>
+</html>
